@@ -1,0 +1,24 @@
+[package]
+name = "malwaredb-lzjd2"
+edition = "2021"
+version = "0.0.0"
+authors = ["Richard Zak <richard.j.zak@gmail.com>"]
+license = "Apache-2.0"
+homepage = "https://github.com/malwaredb/lzjd2"
+repository = "https://github.com/malwaredb/lzjd2"
+keywords = ["lzjd", "hashing"]
+categories = ["algorithms"]
+description = "Rust implementation of the LZJD algorithm by Edward Raff -- https://github.com/EdwardRaff/jLZJD"
+rust-version = "1.85"
+
+[dependencies]
+base64 = "0.22"
+
+[build-dependencies]
+vergen = "9.0.6"
+vergen-gitcl = { version = "1.0.8", features = ["build"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+strip = "symbols"
