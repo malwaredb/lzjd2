@@ -9,10 +9,13 @@ repository = "https://github.com/malwaredb/lzjd2"
 keywords = ["lzjd", "hashing"]
 categories = ["algorithms"]
 description = "Rust implementation of the LZJD algorithm by Edward Raff -- https://github.com/EdwardRaff/jLZJD"
-rust-version = "1.85"
+rust-version = "1.82"
 
 [dependencies]
 base64 = "0.22"
+
+[dev-dependencies]
+malwaredb-lzjd = "0.1.3"
 
 [build-dependencies]
 vergen = "9.0.6"

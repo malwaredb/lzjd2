@@ -294,6 +294,8 @@ impl Lzjd {
 
 #[cfg(test)]
 mod tests {
+    use malwaredb_lzjd::crc32::CRC32BuildHasher;
+    use malwaredb_lzjd::LZDict;
     use super::*;
 
     #[test]
@@ -357,5 +359,55 @@ mod tests {
         let (b32, b64) = lz.dual_digest_from_bytes(s2);
         let comb = Lzjd::combined_similarity(&a32, &b32, &a64, &b64, 0.5);
         assert!((comb - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn lorem_ipsum() {
+        const LOREM_IPSUM_5: &str = include_str!("../testdata/lorem_ipsum_5.txt");
+        const LOREM_IPSUM_LZJD: &str = include_str!("../testdata/lorem_ipsum_5.lzjd.txt");
+
+        let lz = Lzjd::new(1024, 0);
+        let digest = lz.digest_from_bytes(LOREM_IPSUM_5.as_bytes());
+        let lzjd_hash = Lzjd::lzjd_digest_to_base64(&digest);
+
+        //assert_eq!(lzjd_hash, LOREM_IPSUM_LZJD);
+
+        let decoded = Lzjd::lzjd_digest_from_base64(LOREM_IPSUM_LZJD).unwrap();
+        //assert_eq!(digest, decoded);
+
+        let simarlity = Lzjd::similarity_from_digests(&digest, &decoded);
+        assert_eq!(format!("{:.2}", simarlity), "1.00");
+    }
+
+    #[test]
+    fn lorem_ipsum_dual() {
+        const LOREM_IPSUM_5: &str = include_str!("../testdata/lorem_ipsum_5.txt");
+        const LOREM_IPSUM_LZJD: &str = include_str!("../testdata/lorem_ipsum_5.lzjd.txt");
+
+        let lz = Lzjd::new(1024, 0);
+        let (digest32_gen, digest64_gen) = lz.dual_digest_from_bytes(LOREM_IPSUM_5.as_bytes());
+        let (digest32_decoded, digest64_decoded) = Lzjd::decode_dual_from_base64(LOREM_IPSUM_LZJD).unwrap();
+
+        let simarlity = Lzjd::combined_similarity(&digest32_gen, &digest32_decoded, &digest64_gen, &digest64_decoded, 0.5);
+        assert_eq!(format!("{:.2}", simarlity), "1.00");
+    }
+
+    #[test]
+    fn lorem_ipsem_mdb_lzjd() {
+        const LOREM_IPSUM_5: &str = include_str!("../testdata/lorem_ipsum_5.txt");
+        const LOREM_IPSUM_LZJD: &str = include_str!("../testdata/lorem_ipsum_5.lzjd.txt");
+
+        let lz = Lzjd::new(1024, 0);
+        let digest = lz.digest_from_bytes(LOREM_IPSUM_5.as_bytes());
+        let new_hash = Lzjd::lzjd_digest_to_base64(&digest);
+
+        let old_hash = LZDict::from_base64_string(LOREM_IPSUM_LZJD).unwrap();
+        assert_eq!(LOREM_IPSUM_LZJD, format!("{old_hash}"));
+        assert_eq!(new_hash, format!("{old_hash}"));
+
+        let build_hasher = CRC32BuildHasher;
+        let lz_dict = LZDict::from_bytes_stream(LOREM_IPSUM_5.as_bytes().iter().cloned(), &build_hasher);
+        let old_sim = lz_dict.jaccard_similarity(&old_hash);
+        assert_eq!(format!("{:.2}", old_sim), "1.00");
     }
 }
