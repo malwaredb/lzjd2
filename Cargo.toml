@@ -17,10 +17,6 @@ base64 = "0.22"
 [dev-dependencies]
 malwaredb-lzjd = "0.1.3"
 
-[build-dependencies]
-vergen = "9.0.6"
-vergen-gitcl = { version = "1.0.8", features = ["build"] }
-
 [profile.release]
 codegen-units = 1
 lto = true

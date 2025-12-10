@@ -15,13 +15,3 @@ pub mod murmur3;
 
 /// Rabin Karp hasher
 pub mod rabinkarp;
-
-/// LZJD implementation version
-pub const VERSION: &str = concat!(
-    "v",
-    env!("CARGO_PKG_VERSION"),
-    "-",
-    env!("VERGEN_GIT_SHA"),
-    " ",
-    env!("VERGEN_BUILD_DATE")
-);
