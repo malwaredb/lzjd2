@@ -95,7 +95,7 @@ impl Lzjd {
 
         let mut start = 0usize;
         let mut hasher32 = RollingMurmur32::<4>::new(self.seed);
-        let mut hasher64 = RollingMurmur64::<8>::new(self.seed as u64);
+        let mut hasher64 = RollingMurmur64::<4>::new(self.seed as u64);
         while start < n {
             let mut end = start + 1;
             let mut added = false;
