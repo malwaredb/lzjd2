@@ -25,7 +25,12 @@ pub fn murmur3_x86_32(data: &[u8], seed: u32) -> u32 {
     let mut h1 = seed;
 
     for i in 0..n_blocks {
-        let k_bytes = [data[4 * i], data[4 * i + 1], data[4 * i + 2], data[4 * i + 3]];
+        let k_bytes = [
+            data[4 * i],
+            data[4 * i + 1],
+            data[4 * i + 2],
+            data[4 * i + 3],
+        ];
         let mut k1 = u32::from_le_bytes(k_bytes);
         k1 = k1.wrapping_mul(C1).rotate_left(15).wrapping_mul(C2);
         h1 ^= k1;

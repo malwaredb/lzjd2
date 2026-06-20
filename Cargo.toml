@@ -11,8 +11,13 @@ categories = ["algorithms"]
 description = "Rust implementation of the LZJD algorithm by Edward Raff -- https://github.com/EdwardRaff/jLZJD"
 rust-version = "1.82"
 
+[features]
+default = []
+serde = ["serde/derive"]
+
 [dependencies]
 base64 = "0.22"
+serde = { version = "1.0", optional = true }
 
 [dev-dependencies]
 rstest = "0.26.1"
