@@ -19,6 +19,7 @@ impl<const S: usize> RollingRabinKarp<S> {
     const MOD: u64 = 0xffff_ffff_ffff_fff1; // large 64-bit prime
 
     /// Create a new rolling hash
+    #[must_use]
     pub fn new() -> Self {
         let mut base_pow = 1;
         for _ in 0..S - 1 {
@@ -41,7 +42,7 @@ impl<const S: usize> RollingRabinKarp<S> {
             self.window[self.len % S] = byte;
         }
 
-        self.hash = (self.hash * Self::BASE + byte as u64) % Self::MOD;
+        self.hash = (self.hash * Self::BASE + u64::from(byte)) % Self::MOD;
         self.window[self.len] = byte;
     }
 
@@ -49,7 +50,7 @@ impl<const S: usize> RollingRabinKarp<S> {
     fn pop(&mut self) {
         if self.len > 0 {
             let old = self.window[self.len];
-            let remove = (old as u64 * self.base_pow) % Self::MOD;
+            let remove = (u64::from(old) * self.base_pow) % Self::MOD;
 
             self.hash = if self.hash >= remove {
                 self.hash - remove
@@ -62,6 +63,7 @@ impl<const S: usize> RollingRabinKarp<S> {
 
     /// Get the current hash value
     #[inline]
+    #[must_use]
     pub fn hash(&self) -> u64 {
         self.hash
     }
@@ -74,6 +76,7 @@ impl<const S: usize> RollingRabinKarp<S> {
     }
 
     /// Check if the window is full
+    #[must_use]
     pub fn is_ready(&self) -> bool {
         self.len == S
     }

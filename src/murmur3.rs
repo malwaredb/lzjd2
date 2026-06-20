@@ -5,16 +5,6 @@
 use core::hash::Hasher;
 
 #[inline]
-fn rotl32(x: u32, r: u32) -> u32 {
-    (x << r) | (x >> (32 - r))
-}
-
-#[inline]
-fn rotl64(x: u64, r: u32) -> u64 {
-    (x << r) | (x >> (64 - r))
-}
-
-#[inline]
 fn fmix32(mut h: u32) -> u32 {
     h ^= h >> 16;
     h = h.wrapping_mul(0x85eb_ca6b);
@@ -27,14 +17,14 @@ fn fmix32(mut h: u32) -> u32 {
 #[inline]
 fn fmix64(mut k: u64) -> u64 {
     k ^= k >> 33;
-    k = k.wrapping_mul(0xff51afd7ed558ccd);
+    k = k.wrapping_mul(0xff51_afd7_ed55_8ccd);
     k ^= k >> 33;
-    k = k.wrapping_mul(0xc4ceb9fe1a85ec53);
+    k = k.wrapping_mul(0xc4ce_b9fe_1a85_ec53);
     k ^= k >> 33;
     k
 }
 
-type Murmur32 = RollingMurmur32<4>;
+pub(crate) type Murmur32 = RollingMurmur32<4>;
 type Murmur64 = RollingMurmur64<4>;
 
 /// 32-bit Murmur3 hasher
@@ -50,6 +40,7 @@ impl<const S: usize> RollingMurmur32<S> {
     const C2: u32 = 0x1b87_3593;
 
     /// Create a 32-bit Murmur3 hasher with a given seed
+    #[must_use]
     pub fn new(seed: u32) -> Self {
         Self {
             hash: seed,
@@ -80,23 +71,23 @@ impl<const S: usize> RollingMurmur32<S> {
 
     /// Murmur-style inject
     #[inline]
-    fn inject(&mut self, byte: u8) {
-        let mut k = byte as u32;
+    pub fn inject(&mut self, byte: u8) {
+        let mut k = u32::from(byte);
         k = k.wrapping_mul(Self::C1);
-        k = rotl32(k, 15);
+        k = k.rotate_left(15);
         k = k.wrapping_mul(Self::C2);
 
         self.hash ^= k;
-        self.hash = rotl32(self.hash, 13);
+        self.hash = self.hash.rotate_left(13);
         self.hash = self.hash.wrapping_mul(5).wrapping_add(0xe654_6b64);
     }
 
     /// Inverse-mix removal (rolling-safe)
     #[inline]
     fn remove(&mut self, byte: u8) {
-        let mut k = byte as u32;
+        let mut k = u32::from(byte);
         k = k.wrapping_mul(Self::C1);
-        k = rotl32(k, 15);
+        k = k.rotate_left(15);
         k = k.wrapping_mul(Self::C2);
 
         self.hash ^= k;
@@ -104,12 +95,15 @@ impl<const S: usize> RollingMurmur32<S> {
 
     /// Current rolling hash (optionally finalized)
     #[inline]
+    #[must_use]
+    #[allow(clippy::cast_possible_truncation)]
     pub fn hash(&self) -> u32 {
         fmix32(self.hash ^ self.len as u32)
     }
 
     /// Check if the window is full
     #[inline]
+    #[must_use]
     pub fn is_ready(&self) -> bool {
         self.len == S
     }
@@ -131,7 +125,7 @@ impl<const S: usize> Default for RollingMurmur32<S> {
 
 impl<const S: usize> Hasher for RollingMurmur32<S> {
     fn finish(&self) -> u64 {
-        self.hash as u64
+        u64::from(self.hash)
     }
 
     fn write(&mut self, bytes: &[u8]) {
@@ -150,10 +144,11 @@ pub struct RollingMurmur64<const S: usize> {
 }
 
 impl<const S: usize> RollingMurmur64<S> {
-    const C1: u64 = 0x87c37b91114253d5;
-    const C2: u64 = 0x4cf5ad432745937f;
+    const C1: u64 = 0x87c3_7b91_1142_53d5;
+    const C2: u64 = 0x4cf5_ad43_2745_937f;
 
     /// Create a 64-bit Murmur3 hasher with a given seed
+    #[must_use]
     pub fn new(seed: u64) -> Self {
         Self {
             hash: seed,
@@ -184,22 +179,22 @@ impl<const S: usize> RollingMurmur64<S> {
     /// Murmur-style inject
     #[inline]
     fn inject(&mut self, byte: u8) {
-        let mut k = byte as u64;
+        let mut k = u64::from(byte);
         k = k.wrapping_mul(Self::C1);
-        k = rotl64(k, 31);
+        k = k.rotate_left(31);
         k = k.wrapping_mul(Self::C2);
 
         self.hash ^= k;
-        self.hash = rotl64(self.hash, 27);
-        self.hash = self.hash.wrapping_mul(5).wrapping_add(0x52dce729);
+        self.hash = self.hash.rotate_left(27);
+        self.hash = self.hash.wrapping_mul(5).wrapping_add(0x52dc_e729);
     }
 
     /// Inverse-safe rolling removal
     #[inline]
     fn remove(&mut self, byte: u8) {
-        let mut k = byte as u64;
+        let mut k = u64::from(byte);
         k = k.wrapping_mul(Self::C1);
-        k = rotl64(k, 31);
+        k = k.rotate_left(31);
         k = k.wrapping_mul(Self::C2);
 
         self.hash ^= k;
@@ -207,12 +202,14 @@ impl<const S: usize> RollingMurmur64<S> {
 
     /// Get finalized rolling hash
     #[inline]
+    #[must_use]
     pub fn hash(&self) -> u64 {
         fmix64(self.hash ^ self.len as u64)
     }
 
     /// Check if the window is full
     #[inline]
+    #[must_use]
     pub fn is_ready(&self) -> bool {
         self.len == S
     }
