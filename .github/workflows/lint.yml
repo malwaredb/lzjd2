@@ -1,0 +1,54 @@
+name: Lint
+on: [pull_request, push]
+permissions:
+  contents: read
+jobs:
+  build_clippy_fmt_test:
+    name: Cargo clippy, fmt, test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: block
+        disable-sudo: true
+        allowed-endpoints: >
+          archive.ubuntu.com:443
+          azure.archive.ubuntu.com:80
+          crates.io:443
+          esm.ubuntu.com:443
+          github.com:443
+          githubapp.com:443
+          index.crates.io:443
+          motd.ubuntu.com:443
+          objects.githubusercontent.com:443
+          ppa.launchpadcontent.net:443
+          release-assets.githubusercontent.com:443
+          security.ubuntu.com:443
+          static.crates.io:443
+          static.rust-lang.org:443
+
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+    - name: cargo fmt
+      run: cargo fmt --all -- --check
+    - name: build everything
+      run: cargo build --all-features
+    - name: cargo clippy
+      run: cargo clippy --all-features --tests -- -D warnings
+
+  check-spdx-headers:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          disable-sudo: true
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            github.com:443
+            githubapp.com:443
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: enarx/spdx@b5bfdd4410071bf058c8333d0e70020001524b6b # master
+        with:
+          licenses: Apache-2.0

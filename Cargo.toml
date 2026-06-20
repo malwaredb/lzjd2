@@ -6,6 +6,7 @@ authors = ["Richard Zak <richard.j.zak@gmail.com>"]
 license = "Apache-2.0"
 homepage = "https://github.com/malwaredb/lzjd2"
 repository = "https://github.com/malwaredb/lzjd2"
+readme = "readme.md"
 keywords = ["lzjd", "hashing"]
 categories = ["algorithms"]
 description = "Rust implementation of the LZJD algorithm by Edward Raff -- https://github.com/EdwardRaff/jLZJD"
