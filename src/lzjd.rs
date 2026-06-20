@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::murmur3::Murmur32;
+use crate::murmur3::murmur3_x86_32;
 
 use std::collections::HashSet;
 
@@ -27,29 +27,23 @@ impl Lzjd {
         Self { k, seed }
     }
 
-    /// Build an LZSet-like digest from input bytes.
+    /// Build an LZJD digest from input bytes using `MurmurHash3_x86_32`.
     ///
-    /// Returns a `Vec<u32>` of length `<= k` containing the k-smallest CRC32 hash values
-    /// of the novel LZ78 substrings, sorted in ascending signed (i32) order to match the
-    /// `malwaredb-lzjd` reference implementation.
+    /// Returns a `Vec<u32>` of exactly `k` entries: the k-smallest hash values (sorted
+    /// ascending as signed i32, matching jLZJD), zero-padded when the input yields fewer
+    /// than `k` unique LZ78 phrases.
     #[must_use]
     #[allow(clippy::cast_possible_wrap)]
     pub fn digest_from_bytes(&self, data: &[u8]) -> Vec<u32> {
         let n = data.len();
         let mut seen: HashSet<u32> = HashSet::new();
         let mut hashes: Vec<u32> = Vec::new();
-
-        let mut state = Murmur32::new(self.seed);
         let mut start = 0usize;
 
         while start < n {
-            state.reset(self.seed);
             let mut added = false;
-
             for end in (start + 1)..=n {
-                state.inject(data[end - 1]);
-                let h = state.hash();
-
+                let h = murmur3_x86_32(&data[start..end], self.seed);
                 if seen.insert(h) {
                     hashes.push(h);
                     start = end;
@@ -57,24 +51,26 @@ impl Lzjd {
                     break;
                 }
             }
-
             if !added {
                 start += 1;
             }
         }
 
-        // Sort as signed i32 to match malwaredb-lzjd's ordering, then keep k smallest.
         hashes.sort_unstable_by_key(|&v| v as i32);
-        hashes.truncate(self.k);
+        if hashes.len() > self.k {
+            hashes.truncate(self.k);
+        } else {
+            hashes.resize(self.k, 0);
+        }
         hashes
     }
 
     /// Compute approximate Jaccard similarity between two LZJD digests (both sorted).
     ///
-    /// Both inputs should be sorted ascending and represent the k-smallest hashes of the original sets.
-    /// Returns a value in [0.0, 1.0].
+    /// Both inputs should be sorted ascending as signed i32 and represent the k-smallest
+    /// hashes of the original sets.  Returns a value in `[0.0, 1.0]`.
     #[must_use]
-    #[allow(clippy::cast_precision_loss, clippy::comparison_chain)]
+    #[allow(clippy::cast_possible_wrap, clippy::cast_precision_loss, clippy::comparison_chain)]
     pub fn similarity_from_digests(a: &[u32], b: &[u32]) -> f64 {
         let mut i = 0usize;
         let mut j = 0usize;
@@ -85,7 +81,7 @@ impl Lzjd {
                 inter += 1;
                 i += 1;
                 j += 1;
-            } else if a[i] < b[j] {
+            } else if (a[i] as i32) < (b[j] as i32) {
                 i += 1;
             } else {
                 j += 1;
@@ -108,23 +104,26 @@ impl Lzjd {
         Self::similarity_from_digests(&da, &db)
     }
 
-    /// Convert an LZJD digest to a base64-encoded string.
+    /// Convert an LZJD digest to a base64-encoded string (jLZJD-compatible format).
+    ///
+    /// Each `u32` entry is written as a big-endian i32 (matching Java's default byte order),
+    /// producing a fixed-size array of `k` 4-byte values including any zero-padding.
     #[must_use]
     pub fn lzjd_digest_to_base64(digest: &[u32]) -> String {
-        // Convert u32 -> little-endian bytes
         let mut bytes = Vec::with_capacity(digest.len() * 4);
         for &h in digest {
-            bytes.extend_from_slice(&h.to_le_bytes());
+            bytes.extend_from_slice(&h.to_be_bytes());
         }
-
         general_purpose::STANDARD.encode(bytes)
     }
 
-    /// Create a LZJD digest from a base64-encoded string.
+    /// Create a LZJD digest from a base64-encoded string (jLZJD-compatible format).
+    ///
+    /// Reads big-endian i32 values, preserving zero-padded entries.
     ///
     /// # Errors
     ///
-    /// Returns an error if the base64 string is invalid
+    /// Returns an error if the base64 string is invalid or not a multiple of 4 bytes.
     pub fn lzjd_digest_from_base64(b64: &str) -> Result<Vec<u32>, String> {
         let bytes = general_purpose::STANDARD
             .decode(b64)
@@ -136,7 +135,7 @@ impl Lzjd {
 
         let mut digest = Vec::with_capacity(bytes.len() / 4);
         for chunk in bytes.chunks_exact(4) {
-            let h = u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+            let h = u32::from_be_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
             digest.push(h);
         }
 
