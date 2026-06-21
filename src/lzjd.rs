@@ -169,6 +169,7 @@ impl std::fmt::Display for LzDigest {
 }
 
 #[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl serde::Serialize for LzDigest {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -179,6 +180,7 @@ impl serde::Serialize for LzDigest {
 }
 
 #[cfg(feature = "serde")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl<'de> serde::Deserialize<'de> for LzDigest {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
