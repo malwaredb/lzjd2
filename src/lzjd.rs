@@ -1,10 +1,40 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::murmur3::murmur3_x86_32;
+use crate::murmur3::{finalize, mix_block};
 
 use std::collections::HashSet;
+use std::hash::{BuildHasherDefault, Hasher};
 
 use base64::{engine::general_purpose, Engine as _};
+
+/// Passthrough hasher for `u32` keys. The keys are already well-distributed
+/// Murmur3 outputs, so this skips `SipHash` entirely and just spreads the value
+/// across the full 64-bit space (Fibonacci hashing) for the hash table's sake.
+#[derive(Default)]
+struct U32Hasher(u64);
+
+impl Hasher for U32Hasher {
+    #[inline]
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    #[inline]
+    fn write(&mut self, bytes: &[u8]) {
+        // Never exercised for `u32` keys (which call `write_u32`), but kept
+        // correct so the type is a valid `Hasher` for any input.
+        for &b in bytes {
+            self.0 = self.0.rotate_left(8) ^ u64::from(b);
+        }
+    }
+
+    #[inline]
+    fn write_u32(&mut self, n: u32) {
+        self.0 = u64::from(n).wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    }
+}
+
+type U32Set = HashSet<u32, BuildHasherDefault<U32Hasher>>;
 
 /// LZJD digest builder/configuration
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -37,14 +67,29 @@ impl Lzjd {
     #[allow(clippy::cast_possible_wrap)]
     pub fn digest_from_bytes(&self, data: &[u8]) -> LzDigest {
         let n = data.len();
-        let mut seen = HashSet::new();
-        let mut hashes = Vec::new();
+        let mut seen = U32Set::default();
+        let mut hashes = Vec::with_capacity(self.k);
         let mut start = 0usize;
 
         while start < n {
+            // Running Murmur3 block state for the current phrase. As `end`
+            // grows we fold each completed 4-byte block into `h1` exactly once;
+            // the tail and finalisation are cheap (O(1)) per prefix length.
+            let mut h1 = self.seed;
+            let mut block_end = start;
             let mut added = false;
             for end in (start + 1)..=n {
-                let h = murmur3_x86_32(&data[start..end], self.seed);
+                while block_end + 4 <= end {
+                    let k1 = u32::from_le_bytes([
+                        data[block_end],
+                        data[block_end + 1],
+                        data[block_end + 2],
+                        data[block_end + 3],
+                    ]);
+                    h1 = mix_block(h1, k1);
+                    block_end += 4;
+                }
+                let h = finalize(h1, &data[block_end..end], end - start);
                 if seen.insert(h) {
                     hashes.push(h);
                     start = end;
